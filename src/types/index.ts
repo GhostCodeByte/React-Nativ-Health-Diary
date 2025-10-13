@@ -93,6 +93,12 @@ export interface Question {
   // ordering and toggling in UI
   order?: number;
   active?: boolean;
+
+  // time of day when question should be asked
+  timeOfDay?: "morning" | "evening" | "both";
+
+  // which day the question refers to (UI + logic)
+  refDay?: "today" | "yesterday";
 }
 
 /**
@@ -110,5 +116,8 @@ export interface DiaryEntry {
   // optional metadata
   createdAt?: string;
   updatedAt?: string;
+
+  // the logical day the entry refers to (e.g., a "yesterday" reflection)
+  forDay?: "today" | "yesterday";
   synced?: boolean; // true if successfully synced to remote backend
 }

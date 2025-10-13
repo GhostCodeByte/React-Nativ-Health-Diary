@@ -27,6 +27,10 @@ import GroupManagerScreen from "./src/screens/GroupManagerScreen";
 import QuestionManagerScreen from "./src/screens/QuestionManagerScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import CalendarScreen from "./src/screens/CalendarScreen";
+import {
+  registerUsageBackgroundTask,
+  promptUsageAccessIfNeeded,
+} from "./src/services/usageScheduler";
 
 const THEME = {
   background: "#F5F5DC",
@@ -257,6 +261,12 @@ function RootDrawer() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Register background task to collect and submit usage stats daily
+    registerUsageBackgroundTask();
+    // Prompt Usage Access settings on first launch if missing
+    promptUsageAccessIfNeeded();
+  }, []);
   return (
     <NavigationContainer theme={NavTheme}>
       <Stack.Navigator

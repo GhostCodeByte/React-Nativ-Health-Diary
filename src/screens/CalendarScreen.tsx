@@ -73,7 +73,9 @@ export default function CalendarScreen() {
     value: EntryValue;
     timeDraft: string; // for time entry
     multiDraft: string[]; // for multi
-    boolThenTime: { phase: "decide"; value: EntryValue } | { phase: "time"; value: EntryValue };
+    boolThenTime:
+      | { phase: "decide"; value: EntryValue }
+      | { phase: "time"; value: EntryValue };
     date: DayKey | null;
   }>({
     question: null,
@@ -103,7 +105,10 @@ export default function CalendarScreen() {
         setEntriesByDate(rangeEntries);
       } catch (err: any) {
         if (!cancelled) {
-          Alert.alert("Fehler", err?.message || "Kalenderdaten konnten nicht geladen werden.");
+          Alert.alert(
+            "Fehler",
+            err?.message || "Kalenderdaten konnten nicht geladen werden.",
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -173,55 +178,72 @@ export default function CalendarScreen() {
     setMonthCursor(`${y}-${m}`);
   }, []);
 
-  const handleDayPress = useCallback(async (day: any) => {
-    try {
-      const d = day?.dateString || "";
-      if (!d || !isYYYYMMDD(d)) return;
+  const handleDayPress = useCallback(
+    async (day: any) => {
+      try {
+        const d = day?.dateString || "";
+        if (!d || !isYYYYMMDD(d)) return;
 
-      // Fetch questions and entries for that date
-      setSelectedDate(d);
-      setLoading(true);
-      const [qs, entries] = await Promise.all([
-        questions.length ? questions : supaGetQuestions(),
-        supaGetDiaryEntriesByDate(d),
-      ]);
+        // Fetch questions and entries for that date
+        setSelectedDate(d);
+        setLoading(true);
+        const [qs, entries] = await Promise.all([
+          questions.length ? questions : supaGetQuestions(),
+          supaGetDiaryEntriesByDate(d),
+        ]);
 
-      const activeQs = qs.filter((q) => q.active !== false);
-      const map: EntriesByQuestion = {};
-      for (const e of entries) {
-        map[e.questionID] = e;
+        const activeQs = qs.filter((q) => q.active !== false);
+        const map: EntriesByQuestion = {};
+        for (const e of entries) {
+          map[e.questionID] = e;
+        }
+        // Ensure missing questions show as undefined
+        for (const q of activeQs) {
+          if (!map[q.id]) map[q.id] = undefined;
+        }
+
+        setQuestions(qs);
+        setDayEntries(map);
+      } catch (err: any) {
+        Alert.alert(
+          "Fehler",
+          err?.message || "Konnte Tagesdetails nicht laden.",
+        );
+        setSelectedDate(null);
+      } finally {
+        setLoading(false);
       }
-      // Ensure missing questions show as undefined
-      for (const q of activeQs) {
-        if (!map[q.id]) map[q.id] = undefined;
-      }
-
-      setQuestions(qs);
-      setDayEntries(map);
-    } catch (err: any) {
-      Alert.alert("Fehler", err?.message || "Konnte Tagesdetails nicht laden.");
-      setSelectedDate(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [questions]);
+    },
+    [questions],
+  );
 
   const openEdit = useCallback(
     (q: Question) => {
       if (!selectedDate) return;
       const existing = dayEntries[q.id];
       const baseTime = existing?.time || defaultHHMM(new Date());
-      const baseValue = existing?.value ?? (q.answerType === "multi" ? [] : q.answerType === "boolean" ? false : "");
+      const baseValue =
+        existing?.value ??
+        (q.answerType === "multi"
+          ? []
+          : q.answerType === "boolean"
+            ? false
+            : "");
       setEditing({
         question: q,
         value: baseValue,
-        timeDraft: q.answerType === "time" || q.answerType === "boolean_then_time" ? (typeof baseValue === "string" && isHHMM(baseValue) ? baseValue : baseTime) : baseTime,
+        timeDraft:
+          q.answerType === "time" || q.answerType === "boolean_then_time"
+            ? typeof baseValue === "string" && isHHMM(baseValue)
+              ? baseValue
+              : baseTime
+            : baseTime,
         multiDraft: Array.isArray(baseValue) ? baseValue.map(String) : [],
         boolThenTime:
           q.answerType === "boolean_then_time"
-            ? (typeof baseValue === "string" && isHHMM(baseValue)
-                ? { phase: "time", value: baseValue }
-                : { phase: "decide", value: false })
+            ? typeof baseValue === "string" && isHHMM(baseValue)
+              ? { phase: "time", value: baseValue }
+              : { phase: "decide", value: false }
             : { phase: "decide", value: false },
         date: selectedDate,
       });
@@ -270,7 +292,9 @@ export default function CalendarScreen() {
       // use current time for non-time types
       const chosenTime =
         q.answerType === "time" || q.answerType === "boolean_then_time"
-          ? (typeof newValue === "string" && isHHMM(newValue) ? newValue : defaultHHMM(new Date()))
+          ? typeof newValue === "string" && isHHMM(newValue)
+            ? newValue
+            : defaultHHMM(new Date())
           : defaultHHMM(new Date());
 
       const entry: DiaryEntry = {
@@ -279,6 +303,7 @@ export default function CalendarScreen() {
         date,
         time: chosenTime,
         value: newValue,
+        forDay: (q.refDay ?? "today") as "today" | "yesterday",
       };
 
       await supaSetDiaryEntry(entry);
@@ -297,7 +322,10 @@ export default function CalendarScreen() {
 
       closeEdit();
     } catch (err: any) {
-      Alert.alert("Fehler", err?.message || "Antwort konnte nicht gespeichert werden.");
+      Alert.alert(
+        "Fehler",
+        err?.message || "Antwort konnte nicht gespeichert werden.",
+      );
     }
   }, [editing, dayEntries, closeEdit]);
 
@@ -312,6 +340,7 @@ export default function CalendarScreen() {
         date,
         time: defaultHHMM(new Date()),
         value: null,
+        forDay: (q.refDay ?? "today") as "today" | "yesterday",
       };
       await supaSetDiaryEntry(entry);
 
@@ -363,7 +392,8 @@ export default function CalendarScreen() {
       {!loading && !CalendarComp && (
         <View style={styles.centerArea}>
           <Text style={{ color: THEME.text, textAlign: "center" }}>
-            Das Kalender-Paket ist nicht installiert. Bitte füge react-native-calendars hinzu.
+            Das Kalender-Paket ist nicht installiert. Bitte füge
+            react-native-calendars hinzu.
           </Text>
         </View>
       )}
@@ -394,7 +424,14 @@ export default function CalendarScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCardLarge}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
               <Text style={styles.modalTitle}>
                 {selectedDate} • {Math.round(selectedDayCompletion * 100)}%
               </Text>
@@ -418,13 +455,17 @@ export default function CalendarScreen() {
                       </Text>
                     </View>
                     <View style={{ marginLeft: 8 }}>
-                      <Text style={styles.answerPreview}>{entryPreview(e)}</Text>
+                      <Text style={styles.answerPreview}>
+                        {entryPreview(e)}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
               })}
               {!selectedDayQuestions.length && (
-                <Text style={{ color: THEME.muted }}>Keine aktiven Fragen vorhanden.</Text>
+                <Text style={{ color: THEME.muted }}>
+                  Keine aktiven Fragen vorhanden.
+                </Text>
               )}
             </ScrollView>
           </View>
@@ -440,8 +481,17 @@ export default function CalendarScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <Text style={styles.modalTitle}>{editing.question?.question}</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={styles.modalTitle}>
+                {editing.question?.question}
+              </Text>
               <TouchableOpacity onPress={closeEdit}>
                 <Text style={{ color: THEME.muted, fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
@@ -456,10 +506,18 @@ export default function CalendarScreen() {
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
-                <Button title="Speichern" color={THEME.primary} onPress={saveEdit} />
+                <Button
+                  title="Speichern"
+                  color={THEME.primary}
+                  onPress={saveEdit}
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <Button title="Überspringen" color={THEME.muted} onPress={skipEdit} />
+                <Button
+                  title="Überspringen"
+                  color={THEME.muted}
+                  onPress={skipEdit}
+                />
               </View>
             </View>
           </View>
@@ -482,7 +540,9 @@ function renderEditControl({
     value: EntryValue;
     timeDraft: string;
     multiDraft: string[];
-    boolThenTime: { phase: "decide"; value: EntryValue } | { phase: "time"; value: EntryValue };
+    boolThenTime:
+      | { phase: "decide"; value: EntryValue }
+      | { phase: "time"; value: EntryValue };
     date: DayKey | null;
   };
   setEditing: React.Dispatch<React.SetStateAction<any>>;
@@ -621,7 +681,9 @@ function renderEditControl({
               );
             })}
             {!options.length && (
-              <Text style={{ color: THEME.muted }}>Keine Optionen definiert.</Text>
+              <Text style={{ color: THEME.muted }}>
+                Keine Optionen definiert.
+              </Text>
             )}
           </View>
         </View>
@@ -653,7 +715,8 @@ function renderEditControl({
           )}
           {!DateTimePickerComp && (
             <Text style={{ color: THEME.muted }}>
-              Zeit-Auswähler nicht verfügbar. Bitte installiere @react-native-community/datetimepicker.
+              Zeit-Auswähler nicht verfügbar. Bitte installiere
+              @react-native-community/datetimepicker.
             </Text>
           )}
         </View>
@@ -683,7 +746,9 @@ function renderEditControl({
             </View>
           </View>
 
-          <Text style={[commonStyles.label, { marginTop: 10 }]}>Wenn Ja: Uhrzeit</Text>
+          <Text style={[commonStyles.label, { marginTop: 10 }]}>
+            Wenn Ja: Uhrzeit
+          </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text style={{ color: THEME.text, fontSize: 16 }}>
               {editing.timeDraft || "--:--"}
@@ -709,7 +774,8 @@ function renderEditControl({
           )}
           {!DateTimePickerComp && (
             <Text style={{ color: THEME.muted }}>
-              Zeit-Auswähler nicht verfügbar. Bitte installiere @react-native-community/datetimepicker.
+              Zeit-Auswähler nicht verfügbar. Bitte installiere
+              @react-native-community/datetimepicker.
             </Text>
           )}
         </View>
@@ -766,7 +832,7 @@ function enumerateDays(startISO: string, endISO: string): string[] {
 
 function parseISO(s: string): Date {
   const [y, m, d] = s.split("-").map((x) => Number(x));
-  return new Date(y, (m - 1), d);
+  return new Date(y, m - 1, d);
 }
 
 function yyyyMMdd(d: Date): string {
@@ -809,7 +875,14 @@ function isHHMM(s: any): s is string {
   if (!m) return false;
   const h = Number(m[1]);
   const mi = Number(m[2]);
-  return Number.isFinite(h) && Number.isFinite(mi) && h >= 0 && h <= 23 && mi >= 0 && mi <= 59;
+  return (
+    Number.isFinite(h) &&
+    Number.isFinite(mi) &&
+    h >= 0 &&
+    h <= 23 &&
+    mi >= 0 &&
+    mi <= 59
+  );
 }
 
 function parseHHMMtoDate(s: string): Date {
@@ -845,7 +918,8 @@ function labelForAnswerType(t: AnswerType): string {
 
 function entryPreview(e?: DiaryEntry) {
   if (!e) return "—";
-  if (e.value === null || typeof e.value === "undefined") return "⟲ (übersprungen)";
+  if (e.value === null || typeof e.value === "undefined")
+    return "⟲ (übersprungen)";
   if (typeof e.value === "boolean") return e.value ? "Ja" : "Nein";
   if (typeof e.value === "number") return String(e.value);
   if (typeof e.value === "string") return e.value;

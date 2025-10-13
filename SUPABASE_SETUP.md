@@ -32,7 +32,9 @@ create table if not exists public.questions (
   placeholder  text,
   unit         text,
   "order"      int default 0,
-  active       boolean default true
+  active       boolean default true,
+  time_of_day  text not null default 'both' check (time_of_day in ('morning','evening','both')),
+  ref_day      text not null default 'today' check (ref_day in ('today','yesterday'))
 );
 
 -- Diary entries (answers)
@@ -43,7 +45,8 @@ create table if not exists public.diary_entries (
   time         text   not null,  -- "HH:mm"
   value        jsonb  not null,  -- boolean | number | string | string[]
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  for_day      text not null default 'today' check (for_day in ('today','yesterday'))
 );
 
 create index if not exists idx_diary_entries_question_date
@@ -117,6 +120,33 @@ values
   (null, 'Hast du heute ausreichend Wasser getrunken?', 'boolean', 1, true),
   (null, 'Wie viele Minuten warst du heute aktiv?', 'number', 2, true),
   (null, 'Wie fühlst du dich gerade?', 'text', 3, true);
+~~~
+
+## 6) Migration für bestehende Datenbanken
+
+Falls du bereits eine Datenbank mit der alten `questions` Tabelle hast, führe dieses SQL aus, um das neue `time_of_day` Feld hinzuzufügen:
+
+~~~
+alter table public.questions
+  add column if not exists time_of_day text not null default 'both' check (time_of_day in ('morning','evening','both'));
+
+alter table public.questions
+  add column if not exists ref_day text not null default 'today' check (ref_day in ('today','yesterday'));
+
+alter table public.diary_entries
+  add column if not exists for_day text not null default 'today' check (for_day in ('today','yesterday'));
+~~~
+
+## 7) Optionale Auto-Fragen für Nutzungsdaten (Android)
+
+Diese Fragen werden von der App automatisch befüllt (Android UsageStats) und sollten auf "Abends" gestellt sein:
+
+~~~
+insert into public.questions (group_id, question, answer_type, unit, "order", active, time_of_day) values
+  (null, 'Wie lange warst du heute am Handy? (Automatisch)', 'number', 'Min', 1001, true, 'evening'),
+  (null, 'Zeit auf Social Media heute (Automatisch)', 'number', 'Min', 1002, true, 'evening'),
+  (null, 'Zeit Musik/Audio heute (Automatisch)', 'number', 'Min', 1003, true, 'evening'),
+  (null, 'Letzte App vor dem Schlafen (Automatisch)', 'text', null, 1004, true, 'evening');
 ~~~
 
 Fertig. Starte die App neu. Wenn die Env-Variablen korrekt gesetzt sind, lädt die App die Fragen aus Supabase und schreibt Einträge in `public.diary_entries`.

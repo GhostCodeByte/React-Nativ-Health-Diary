@@ -113,13 +113,23 @@ export default function FocusScreen() {
         const loaded: Question[] = await supaGetQuestions();
 
         if (!cancelled) {
+          // Filter questions based on current time of day
+          const now = new Date();
+          const hour = now.getHours();
+          const currentTimeOfDay =
+            hour < 12 ? "morning" : hour >= 18 ? "evening" : null; // null for midday, show only 'both'
+          const filtered = loaded.filter((q) => {
+            const tod = q.timeOfDay ?? "both";
+            return tod === "both" || tod === currentTimeOfDay;
+          });
+
           const qid = (route as any)?.params?.questionId;
           const startIdx =
             typeof qid === "number"
-              ? loaded.findIndex((q) => q.id === qid)
+              ? filtered.findIndex((q) => q.id === qid)
               : -1;
 
-          setQuestions(loaded);
+          setQuestions(filtered);
           setIndex(startIdx >= 0 ? startIdx : 0);
           setLoadState({ kind: "ready" });
         }
@@ -203,6 +213,7 @@ export default function FocusScreen() {
         date,
         time,
         value,
+        forDay: (current.refDay ?? "today") as "today" | "yesterday",
       };
 
       // Try remote (if configured) then fallback to local
@@ -241,6 +252,7 @@ export default function FocusScreen() {
       date,
       time,
       value: null,
+      forDay: (current.refDay ?? "today") as "today" | "yesterday",
     };
 
     try {

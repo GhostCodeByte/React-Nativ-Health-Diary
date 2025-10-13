@@ -53,7 +53,8 @@ create table if not exists public.questions (
   placeholder  text,
   unit         text,
   "order"      int default 0,
-  active       boolean default true
+  active       boolean default true,
+  time_of_day  text not null default 'both' check (time_of_day in ('morning','evening','both'))
 );
 
 -- Diary entries (answers)
@@ -226,6 +227,8 @@ export async function supaGetQuestions(): Promise<Question[]> {
         "unit",
         "order",
         "active",
+        "time_of_day",
+        "ref_day",
       ].join(", "),
     )
     .or("active.is.null,active.eq.true")
@@ -327,6 +330,8 @@ function toQuestion(row: any): Question | null {
       row.active === null || row.active === undefined
         ? undefined
         : Boolean(row.active),
+    timeOfDay: String(row.time_of_day ?? "both") as Question["timeOfDay"],
+    refDay: String(row.ref_day ?? "today") as Question["refDay"],
   };
 }
 
@@ -337,6 +342,7 @@ function toDiaryEntryInsert(entry: DiaryEntry): Record<string, any> {
     date: entry.date, // should be YYYY-MM-DD
     time: entry.time, // HH:mm
     value: entry.value, // Supabase will store as jsonb
+    for_day: String(entry.forDay ?? "today"),
   };
 }
 
@@ -502,6 +508,8 @@ export async function supaInsertQuestion(
       input.active === null || input.active === undefined
         ? true
         : Boolean(input.active),
+    time_of_day: String(input.timeOfDay ?? "both"),
+    ref_day: String(input.refDay ?? "today"),
   };
 
   const { data, error } = await supabase
@@ -521,6 +529,8 @@ export async function supaInsertQuestion(
         "unit",
         "order",
         "active",
+        "time_of_day",
+        "ref_day",
       ].join(", "),
     )
     .single();
@@ -596,6 +606,12 @@ export async function supaUpdateQuestion(
       changes.active === null || changes.active === undefined
         ? null
         : Boolean(changes.active);
+  if (Object.prototype.hasOwnProperty.call(changes, "timeOfDay"))
+    payload.time_of_day =
+      changes.timeOfDay === undefined ? undefined : String(changes.timeOfDay);
+  if (Object.prototype.hasOwnProperty.call(changes, "refDay"))
+    payload.ref_day =
+      changes.refDay === undefined ? undefined : String(changes.refDay);
 
   const { data, error } = await supabase
     .from("questions")
@@ -615,6 +631,8 @@ export async function supaUpdateQuestion(
         "unit",
         "order",
         "active",
+        "time_of_day",
+        "ref_day",
       ].join(", "),
     )
     .single();
@@ -644,7 +662,9 @@ export async function supaGetDiaryEntriesByDate(
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("diary_entries")
-    .select("id, question_id, date, time, value, created_at, updated_at")
+    .select(
+      "id, question_id, date, time, value, created_at, updated_at, for_day",
+    )
     .eq("date", date)
     .order("time", { ascending: true })
     .order("id", { ascending: true });
@@ -660,6 +680,7 @@ export async function supaGetDiaryEntriesByDate(
       value: row.value,
       createdAt: row.created_at ?? undefined,
       updatedAt: row.updated_at ?? undefined,
+      forDay: (row.for_day ?? "today") as "today" | "yesterday",
     }),
   );
   return items;
@@ -676,7 +697,9 @@ export async function supaGetDiaryEntriesInRange(
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("diary_entries")
-    .select("id, question_id, date, time, value, created_at, updated_at")
+    .select(
+      "id, question_id, date, time, value, created_at, updated_at, for_day",
+    )
     .gte("date", startDate)
     .lte("date", endDate)
     .order("date", { ascending: true })
@@ -694,6 +717,7 @@ export async function supaGetDiaryEntriesInRange(
       value: row.value,
       createdAt: row.created_at ?? undefined,
       updatedAt: row.updated_at ?? undefined,
+      forDay: (row.for_day ?? "today") as "today" | "yesterday",
     }),
   );
   return items;
@@ -713,7 +737,8 @@ export async function supaSetDiaryEntry(entry: DiaryEntry): Promise<void> {
     .from("diary_entries")
     .delete()
     .eq("question_id", entry.questionID)
-    .eq("date", entry.date);
+    .eq("date", entry.date)
+    .eq("for_day", String(entry.forDay ?? "today"));
 
   if (delErr) throw wrapSupabaseError("diary_entries delete (set)", delErr);
 
