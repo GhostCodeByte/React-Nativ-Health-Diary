@@ -59,7 +59,8 @@ type QuestionForm = {
   placeholder?: string;
   unit?: string;
   active: boolean;
-  timeOfDay: "morning" | "evening" | "both";
+  timeOfDay: "both" | "evening";
+  askOncePerDay: boolean;
   refDay: "today" | "yesterday";
 };
 
@@ -134,6 +135,7 @@ export default function QuestionManagerScreen() {
             "order",
             "active",
             "time_of_day",
+            "ask_once_per_day",
             "ref_day",
           ].join(", "),
         )
@@ -186,6 +188,10 @@ export default function QuestionManagerScreen() {
             row.active === null || row.active === undefined
               ? undefined
               : Boolean(row.active),
+          askOncePerDay:
+            row.ask_once_per_day === null || row.ask_once_per_day === undefined
+              ? undefined
+              : Boolean(row.ask_once_per_day),
           timeOfDay: String(row.time_of_day ?? "both") as Question["timeOfDay"],
           refDay: String(row.ref_day ?? "today") as Question["refDay"],
         };
@@ -214,6 +220,7 @@ export default function QuestionManagerScreen() {
       unit: "",
       active: true,
       timeOfDay: "both",
+      askOncePerDay: false,
       refDay: "today",
     });
     setModalVisible(true);
@@ -241,6 +248,7 @@ export default function QuestionManagerScreen() {
       unit: q.unit ?? "",
       active: q.active !== false,
       timeOfDay: q.timeOfDay ?? "both",
+      askOncePerDay: q.askOncePerDay ?? false,
       refDay: q.refDay ?? "today",
     });
     setModalVisible(true);
@@ -271,6 +279,7 @@ export default function QuestionManagerScreen() {
       unit: emptyToNull(form.unit),
       active: form.active,
       time_of_day: form.timeOfDay,
+      ask_once_per_day: form.askOncePerDay,
       ref_day: form.refDay,
     };
 
@@ -468,10 +477,60 @@ export default function QuestionManagerScreen() {
               }
             />
 
-            <TimeOfDaySelector
-              value={form?.timeOfDay ?? "both"}
-              onChange={(t) => setForm((s) => (s ? { ...s, timeOfDay: t } : s))}
+            <ToggleRow
+              label="Nur beim ersten Mal fragen (pro Tag)"
+              value={form?.askOncePerDay ?? false}
+              onToggle={() =>
+                setForm((s) =>
+                  s ? { ...s, askOncePerDay: !s.askOncePerDay } : s,
+                )
+              }
             />
+            <View style={{ marginBottom: 10 }}>
+              <Text
+                style={{ color: THEME.text, fontSize: 14, marginBottom: 6 }}
+              >
+                Zeitpunkt
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {[
+                  { key: "both", label: "Immer" },
+                  { key: "evening", label: "Nur abends" },
+                ].map((opt) => {
+                  const selected = opt.key === (form?.timeOfDay ?? "both");
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      onPress={() =>
+                        setForm((s) =>
+                          s
+                            ? { ...s, timeOfDay: opt.key as "both" | "evening" }
+                            : s,
+                        )
+                      }
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: selected ? THEME.primary : THEME.border,
+                        backgroundColor: selected ? THEME.primary : "#FFFFFF",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: selected ? "#FFFFFF" : THEME.text,
+                          fontSize: 14,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             <RefDaySelector
               value={form?.refDay ?? "today"}
               onChange={(d) => setForm((s) => (s ? { ...s, refDay: d } : s))}
@@ -650,56 +709,6 @@ function AnswerTypeSelector({
                 }}
               >
                 {labelForAnswerType(t)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function TimeOfDaySelector({
-  value,
-  onChange,
-}: {
-  value: "morning" | "evening" | "both";
-  onChange: (t: "morning" | "evening" | "both") => void;
-}) {
-  const options: Array<{ key: "morning" | "evening" | "both"; label: string }> =
-    [
-      { key: "morning", label: "Morgens" },
-      { key: "evening", label: "Abends" },
-      { key: "both", label: "Beidem" },
-    ];
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={{ color: THEME.text, fontSize: 14, marginBottom: 6 }}>
-        Zeit des Tages
-      </Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {options.map((opt) => {
-          const selected = opt.key === value;
-          return (
-            <TouchableOpacity
-              key={opt.key}
-              onPress={() => onChange(opt.key)}
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: selected ? THEME.primary : THEME.border,
-                backgroundColor: selected ? THEME.primary : "#FFFFFF",
-              }}
-            >
-              <Text
-                style={{
-                  color: selected ? "#FFFFFF" : THEME.text,
-                  fontSize: 14,
-                }}
-              >
-                {opt.label}
               </Text>
             </TouchableOpacity>
           );

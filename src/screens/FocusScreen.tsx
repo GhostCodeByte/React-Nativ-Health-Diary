@@ -17,6 +17,7 @@ import {
   isSupabaseConfigured,
   supaGetQuestions,
   supaInsertDiaryEntry,
+  supaHasAnsweredQuestionOnDate,
 } from "../services/supabase";
 import type { DiaryEntry, EntryValue, Question } from "../types";
 
@@ -113,15 +114,36 @@ export default function FocusScreen() {
         const loaded: Question[] = await supaGetQuestions();
 
         if (!cancelled) {
-          // Filter questions based on current time of day
           const now = new Date();
+          const today = now.toISOString().slice(0, 10);
           const hour = now.getHours();
-          const currentTimeOfDay =
-            hour < 12 ? "morning" : hour >= 18 ? "evening" : null; // null for midday, show only 'both'
-          const filtered = loaded.filter((q) => {
-            const tod = q.timeOfDay ?? "both";
-            return tod === "both" || tod === currentTimeOfDay;
+          const isEvening = hour >= 18;
+
+          // Honor timeOfDay: show all when 'both' (immer); only evening for 'evening'
+          let filtered: Question[] = loaded.filter((q) => {
+            const rawTimeOfDay = q.timeOfDay ?? "both";
+            const tod = rawTimeOfDay === "evening" ? "evening" : "both";
+            return tod === "both" || (tod === "evening" && isEvening);
           });
+
+          try {
+            const keepFlags = await Promise.all(
+              filtered.map(async (q) => {
+                if (q.askOncePerDay) {
+                  const answered = await supaHasAnsweredQuestionOnDate(
+                    q.id,
+                    today,
+                  );
+                  return !answered;
+                }
+                return true;
+              }),
+            );
+            filtered = filtered.filter((_, idx) => keepFlags[idx]);
+          } catch {
+            // Keep timeOfDay filtering even if this fails
+            filtered = filtered;
+          }
 
           const qid = (route as any)?.params?.questionId;
           const startIdx =

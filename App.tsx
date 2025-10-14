@@ -31,6 +31,7 @@ import {
   registerUsageBackgroundTask,
   promptUsageAccessIfNeeded,
 } from "./src/services/usageScheduler";
+import type { Question } from "./src/types";
 
 const THEME = {
   background: "#F5F5DC",
@@ -74,7 +75,7 @@ function MainScreen({
 }: DrawerScreenProps<RootDrawerParamList, "Main">) {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<any[]>([]);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +106,7 @@ function MainScreen({
   }, []);
 
   const grouped = useMemo(() => {
-    const map: Record<string, any[]> = {};
+    const map: Record<string, Question[]> = {};
     for (const g of groups) map[String(g.id)] = [];
     for (const q of questions) {
       const key = q.groupId == null ? "__none__" : String(q.groupId);

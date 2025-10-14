@@ -54,7 +54,9 @@ create table if not exists public.questions (
   unit         text,
   "order"      int default 0,
   active       boolean default true,
-  time_of_day  text not null default 'both' check (time_of_day in ('morning','evening','both'))
+  time_of_day  text not null default 'both' check (time_of_day in ('morning','evening','both')),
+  ask_once_per_day boolean not null default false,
+  ref_day text not null default 'today' check (ref_day in ('today','yesterday'))
 );
 
 -- Diary entries (answers)
@@ -64,6 +66,7 @@ create table if not exists public.diary_entries (
   date         date   not null,  -- YYYY-MM-DD
   time         text   not null,  -- "HH:mm"
   value        jsonb  not null,  -- boolean | number | string | string[]
+  for_day      text   not null default 'today' check (for_day in ('today','yesterday')),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
@@ -228,6 +231,7 @@ export async function supaGetQuestions(): Promise<Question[]> {
         "order",
         "active",
         "time_of_day",
+        "ask_once_per_day",
         "ref_day",
       ].join(", "),
     )
@@ -330,6 +334,10 @@ function toQuestion(row: any): Question | null {
       row.active === null || row.active === undefined
         ? undefined
         : Boolean(row.active),
+    askOncePerDay:
+      row.ask_once_per_day === null || row.ask_once_per_day === undefined
+        ? undefined
+        : Boolean(row.ask_once_per_day),
     timeOfDay: String(row.time_of_day ?? "both") as Question["timeOfDay"],
     refDay: String(row.ref_day ?? "today") as Question["refDay"],
   };
@@ -509,6 +517,10 @@ export async function supaInsertQuestion(
         ? true
         : Boolean(input.active),
     time_of_day: String(input.timeOfDay ?? "both"),
+    ask_once_per_day:
+      input.askOncePerDay === null || input.askOncePerDay === undefined
+        ? false
+        : Boolean(input.askOncePerDay),
     ref_day: String(input.refDay ?? "today"),
   };
 
@@ -530,6 +542,7 @@ export async function supaInsertQuestion(
         "order",
         "active",
         "time_of_day",
+        "ask_once_per_day",
         "ref_day",
       ].join(", "),
     )
@@ -612,6 +625,16 @@ export async function supaUpdateQuestion(
   if (Object.prototype.hasOwnProperty.call(changes, "refDay"))
     payload.ref_day =
       changes.refDay === undefined ? undefined : String(changes.refDay);
+  if (Object.prototype.hasOwnProperty.call(changes, "askOncePerDay"))
+    payload.ask_once_per_day =
+      changes.askOncePerDay === null || changes.askOncePerDay === undefined
+        ? null
+        : Boolean(changes.askOncePerDay);
+  if (Object.prototype.hasOwnProperty.call(changes, "askOncePerDay"))
+    payload.ask_once_per_day =
+      changes.askOncePerDay === null || changes.askOncePerDay === undefined
+        ? null
+        : Boolean(changes.askOncePerDay);
 
   const { data, error } = await supabase
     .from("questions")
@@ -632,6 +655,7 @@ export async function supaUpdateQuestion(
         "order",
         "active",
         "time_of_day",
+        "ask_once_per_day",
         "ref_day",
       ].join(", "),
     )
@@ -721,6 +745,27 @@ export async function supaGetDiaryEntriesInRange(
     }),
   );
   return items;
+}
+
+/**
+ * Check if a question has already been answered for a given date (and ref day).
+ * Returns true if at least one entry exists for (question_id, date, for_day).
+ */
+export async function supaHasAnsweredQuestionOnDate(
+  questionId: number,
+  date: string,
+  forDay: "today" | "yesterday" = "today",
+): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("diary_entries")
+    .select("id")
+    .eq("question_id", questionId)
+    .eq("date", date)
+    .limit(1);
+
+  if (error) throw wrapSupabaseError("diary_entries exists by date", error);
+  return Array.isArray(data) && data.length > 0;
 }
 
 /**

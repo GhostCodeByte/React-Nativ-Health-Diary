@@ -93,6 +93,11 @@ export interface Question {
   // ordering and toggling in UI
   order?: number;
   active?: boolean;
+  /**
+   * If true, show/ask this question only the first time per calendar day.
+   * When already answered for the current date, it should be skipped.
+   */
+  askOncePerDay?: boolean;
 
   // time of day when question should be asked
   timeOfDay?: "morning" | "evening" | "both";

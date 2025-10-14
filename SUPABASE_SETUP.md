@@ -150,3 +150,66 @@ insert into public.questions (group_id, question, answer_type, unit, "order", ac
 ~~~
 
 Fertig. Starte die App neu. Wenn die Env-Variablen korrekt gesetzt sind, lädt die App die Fragen aus Supabase und schreibt Einträge in `public.diary_entries`.
+
+## 8) Android (Native) Setup – UsageStats
+
+Damit die App auf Android automatisch die tägliche Handynutzung erfassen kann, wird die Android-API `UsageStatsManager` verwendet. Das erfordert:
+
+1) Berechtigung im Manifest
+- Benötigte Permission (geschützt – der Nutzer muss sie in den Einstellungen freigeben):
+~~~
+<uses-permission
+  android:name="android.permission.PACKAGE_USAGE_STATS"
+  tools:ignore="ProtectedPermissions" />
+~~~
+- Achtung: Die `tools:`-Attribute erfordern die tools-XML-Namespace-Deklaration auf dem Wurzelknoten:
+~~~
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools"
+          ...>
+~~~
+
+2) Native Module (Kotlin)
+- Das Projekt bringt ein RN-Modul mit (Kotlin), das die folgenden Methoden exportiert:
+  - `isUsageAccessGranted()`: Prüft, ob die Nutzungserlaubnis erteilt ist
+  - `openUsageAccessSettings()`: Öffnet die entsprechende Android-Einstellungsseite
+  - `getTodayUsageSummary(config)`: Liefert Tageswerte (gesamt, Social, Musik, letzte App)
+- Package/Module:
+  - `com.diary.usage.UsageStatsModule`
+  - `com.diary.usage.UsageStatsPackage`
+- Das Modul wird automatisch registriert (siehe Plugin unten). Falls du die Registrierung manuell übernimmst, füge in `MainApplication` die Package-Registrierung hinzu.
+
+3) Expo Config Plugin
+- In `app.json` ist ein lokales Plugin eingetragen: `"./plugins/withUsageStats"`.
+- Dieses Plugin:
+  - Fügt die Manifest-Permission (inkl. tools:ignore) hinzu
+  - Versucht, `UsageStatsPackage` in `MainApplication` zu registrieren
+
+4) Build als Custom Dev Client oder Release
+- Da native Module genutzt werden, funktioniert das Feature nicht in Expo Go.
+- Erstelle einen Custom Dev Client oder Release:
+  - Prebuild (falls nötig): `expo prebuild`
+  - Dev Client: `eas build -p android --profile development`
+  - Release: `eas build -p android --profile production`
+- Installiere das erzeugte APK/AAB auf dem Gerät/Emulator.
+
+5) Erste Inbetriebnahme
+- Beim ersten App-Start wird die App versuchen, die “Usage Access”-Einstellungen zu öffnen.
+- Erteile die Berechtigung für deine App (Paketname siehe `app.json` -> `android.package`).
+- Optional: In den App-Einstellungen kannst du die tägliche Eintragszeit anpassen und manuell synchronisieren (“Jetzt synchronisieren”).
+
+6) Supabase-Datenfluss
+- Die App legt (falls nicht vorhanden) automatisch vier Fragen an (siehe Abschnitt 7).
+- Einmal täglich (nach der eingestellten Uhrzeit) werden folgende Werte gespeichert:
+  - Gesamtzeit am Handy (Minuten)
+  - Zeit auf Social Media (Minuten)
+  - Zeit Musik/Audio (Minuten)
+  - Letzte App vor dem Schlafen (Name/Label)
+- Die Einträge werden als normale `diary_entries` gespeichert, inklusive:
+  - `date` und `time` (Erfassungszeitpunkt)
+  - `for_day` = 'today' bzw. bei manuellen/anderen Fragen entsprechend der Einstellung 'today'/'yesterday'
+
+7) Hinweise
+- Hintergrund-Ausführung (Background Fetch) ist “best effort” – das OS kann Läufe verzögern/bündeln.
+- Für exaktere nighttime-runs kann zusätzlich ein nativer WorkManager-Job in Betracht gezogen werden.
+- Stelle sicher, dass die Migrationen aus Abschnitt 6 durchgeführt sind (neue Spalten `ref_day` und `for_day`).

@@ -28,7 +28,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      ["./plugins/withUsageStats.js", { "registerPackage": false }]
     ],
     "extra": {
       "eas": {
