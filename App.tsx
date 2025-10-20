@@ -27,10 +27,7 @@ import GroupManagerScreen from "./src/screens/GroupManagerScreen";
 import QuestionManagerScreen from "./src/screens/QuestionManagerScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import CalendarScreen from "./src/screens/CalendarScreen";
-import {
-  registerUsageBackgroundTask,
-  promptUsageAccessIfNeeded,
-} from "./src/services/usageScheduler";
+
 import type { Question } from "./src/types";
 
 const THEME = {
@@ -58,21 +55,15 @@ type RootStackParamList = {
 };
 
 type RootDrawerParamList = {
-  Main: undefined;
   Focus: { questionId?: number } | undefined;
   Settings: undefined;
-  GroupManager: undefined;
-  QuestionManager: { groupId: number; groupName?: string } | undefined;
-  Notifications: undefined;
   Calendar: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
-function MainScreen({
-  navigation,
-}: DrawerScreenProps<RootDrawerParamList, "Main">) {
+function MainScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<any[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -199,8 +190,10 @@ function MainScreen({
 }
 
 function RootDrawer() {
+  const SettingsStack = createNativeStackNavigator();
   return (
     <Drawer.Navigator
+      initialRouteName="Focus"
       screenOptions={{
         headerStyle: { backgroundColor: THEME.background },
         headerTintColor: THEME.text,
@@ -211,63 +204,56 @@ function RootDrawer() {
       }}
     >
       <Drawer.Screen
-        name="Main"
-        component={MainScreen}
-        options={{ title: "Main" }}
-      />
-      <Drawer.Screen
         name="Focus"
         component={FocusScreen}
         options={{ title: "Fokus" }}
       />
       <Drawer.Screen
         name="Settings"
-        component={SettingsScreen}
-        options={({ navigation }) => ({
-          title: "Einstellungen",
-          headerRight: () => (
-            <Button
-              title="Fragen einstellen"
-              color={THEME.primary}
-              onPress={() => navigation.navigate("GroupManager")}
+        options={{ title: "Einstellungen", headerShown: false }}
+      >
+        {() => (
+          <SettingsStack.Navigator
+            screenOptions={{
+              headerStyle: { backgroundColor: THEME.background },
+              headerTintColor: THEME.text,
+              headerTitleStyle: { color: THEME.text },
+              contentStyle: { backgroundColor: THEME.background },
+            }}
+          >
+            <SettingsStack.Screen
+              name="SettingsHome"
+              component={SettingsScreen}
+              options={{ title: "Einstellungen" }}
             />
-          ),
-        })}
-      />
+            <SettingsStack.Screen
+              name="GroupManager"
+              component={GroupManagerScreen}
+              options={{ title: "Gruppen" }}
+            />
+            <SettingsStack.Screen
+              name="QuestionManager"
+              component={QuestionManagerScreen}
+              options={{ title: "Fragen" }}
+            />
+            <SettingsStack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+              options={{ title: "Benachrichtigungen" }}
+            />
+          </SettingsStack.Navigator>
+        )}
+      </Drawer.Screen>
       <Drawer.Screen
         name="Calendar"
         component={CalendarScreen}
         options={{ title: "Kalender" }}
-      />
-      <Drawer.Screen
-        name="GroupManager"
-        component={GroupManagerScreen}
-        options={{ title: "Gruppen", drawerItemStyle: { display: "none" } }}
-      />
-      <Drawer.Screen
-        name="QuestionManager"
-        component={QuestionManagerScreen}
-        options={{ title: "Fragen", drawerItemStyle: { display: "none" } }}
-      />
-      <Drawer.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{
-          title: "Benachrichtigungen",
-          drawerItemStyle: { display: "none" },
-        }}
       />
     </Drawer.Navigator>
   );
 }
 
 export default function App() {
-  useEffect(() => {
-    // Register background task to collect and submit usage stats daily
-    registerUsageBackgroundTask();
-    // Prompt Usage Access settings on first launch if missing
-    promptUsageAccessIfNeeded();
-  }, []);
   return (
     <NavigationContainer theme={NavTheme}>
       <Stack.Navigator

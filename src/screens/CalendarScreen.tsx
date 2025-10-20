@@ -150,25 +150,30 @@ export default function CalendarScreen() {
     return map;
   }, [entriesByDate, questions, monthCursor]);
 
-  // Streak: consecutive full-completion days ending at today
+  // Streak: consecutive days with any answered entry ending at today
   const streak = useMemo(() => {
     const today = new Date();
-    const activeQs = questions.filter((q) => q.active !== false);
+
     let streakCount = 0;
     let cursor = new Date(today);
     for (;;) {
       const d = yyyyMMdd(cursor);
+
       const entries = entriesByDate[d] || [];
-      const ratio = completionRatio(entries, activeQs);
-      if (ratio >= 1) {
+
+      const hasAnswered = entries.some(
+        (e) => e.value !== null && typeof e.value !== "undefined",
+      );
+      if (hasAnswered) {
         streakCount += 1;
         cursor = addDays(cursor, -1);
       } else {
         break;
       }
     }
+
     return streakCount;
-  }, [entriesByDate, questions]);
+  }, [entriesByDate]);
 
   const onMonthChange = useCallback((monthObj: any) => {
     // monthObj: {year, month, day, ...}

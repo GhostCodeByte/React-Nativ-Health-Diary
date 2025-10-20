@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useIsFocused, useRoute } from "@react-navigation/native";
 
 import {
   isSupabaseConfigured,
@@ -41,6 +41,7 @@ export default function FocusScreen() {
   const [index, setIndex] = useState(0);
   const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
   const route = useRoute();
+  const isFocused = useIsFocused();
 
   // Per-question transient answer state
   const [textValue, setTextValue] = useState("");
@@ -101,6 +102,7 @@ export default function FocusScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!isFocused) return;
 
     async function bootstrap() {
       setLoadState({ kind: "loading" });
@@ -169,7 +171,7 @@ export default function FocusScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isFocused, (route as any)?.params?.questionId]);
 
   const handleSubmit = useCallback(
     async (explicitValue?: EntryValue) => {

@@ -247,7 +247,7 @@ export default function QuestionManagerScreen() {
       placeholder: q.placeholder ?? "",
       unit: q.unit ?? "",
       active: q.active !== false,
-      timeOfDay: q.timeOfDay ?? "both",
+      timeOfDay: q.timeOfDay === "evening" ? "evening" : "both",
       askOncePerDay: q.askOncePerDay ?? false,
       refDay: q.refDay ?? "today",
     });
@@ -437,13 +437,34 @@ export default function QuestionManagerScreen() {
                 <Text style={styles.bannerText}>Speichere Reihenfolge…</Text>
               </View>
             )}
-            <DraggableFlatList
-              data={questions}
-              keyExtractor={(item: any) => String(item.id)}
-              onDragEnd={handleDragEnd}
-              renderItem={renderItem}
-              containerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-            />
+
+            <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+              {questions.map((item: any) => (
+                <TouchableOpacity
+                  key={String(item.id)}
+                  activeOpacity={0.9}
+                  onPress={() => startEdit(item)}
+                  style={[
+                    styles.row,
+                    {
+                      borderColor: THEME.border,
+                      backgroundColor: THEME.surface,
+                    },
+                  ]}
+                >
+                  <View style={styles.rowLeft}>
+                    <Text style={styles.rowTitle}>{item.question}</Text>
+                    <Text style={styles.rowSubtitle}>
+                      Typ: {labelForAnswerType(item.answerType)}
+                      {item.active === false ? " • inaktiv" : ""}
+                      {typeof item.order === "number"
+                        ? ` • #${item.order}`
+                        : ""}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </>
         )}
       </View>

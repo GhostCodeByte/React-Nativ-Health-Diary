@@ -260,13 +260,33 @@ export default function GroupManagerScreen() {
                 <Text style={styles.bannerText}>Speichere Reihenfolge…</Text>
               </View>
             )}
-            <DraggableFlatList
-              data={groups}
-              keyExtractor={(item: any) => String(item.id)}
-              onDragEnd={handleDragEnd}
-              renderItem={renderItem}
-              containerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-            />
+
+            <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+              {groups.map((item: any) => (
+                <TouchableOpacity
+                  key={String(item.id)}
+                  activeOpacity={0.9}
+                  onPress={() =>
+                    navigation.navigate("QuestionManager", {
+                      groupId: item.id,
+                      groupName: item.name,
+                    })
+                  }
+                  style={[
+                    styles.row,
+                    {
+                      borderColor: THEME.border,
+                      backgroundColor: THEME.surface,
+                    },
+                  ]}
+                >
+                  <View style={styles.rowLeft}>
+                    <Text style={styles.rowTitle}>{item.name}</Text>
+                    <Text style={styles.rowSubtitle}>#{item.order ?? "-"}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </>
         )}
       </View>
